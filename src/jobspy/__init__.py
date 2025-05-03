@@ -1,24 +1,18 @@
 from __future__ import annotations
 
-import pandas as pd
-from typing import Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Tuple
+
+import pandas as pd
 
 from .jobs import JobType, Location
-from .scrapers.utils import set_logger_level, extract_salary, create_logger
-from .scrapers.indeed import IndeedScraper
-from .scrapers.ziprecruiter import ZipRecruiterScraper
+from .scrapers import Country, JobResponse, SalarySource, ScraperInput, Site
 from .scrapers.glassdoor import GlassdoorScraper
 from .scrapers.google import GoogleJobsScraper
+from .scrapers.indeed import IndeedScraper
 from .scrapers.linkedin import LinkedInScraper
-from .scrapers import SalarySource, ScraperInput, Site, JobResponse, Country
-from .scrapers.exceptions import (
-    LinkedInException,
-    IndeedException,
-    ZipRecruiterException,
-    GlassdoorException,
-    GoogleJobsException,
-)
+from .scrapers.utils import create_logger, extract_salary, set_logger_level
+from .scrapers.ziprecruiter import ZipRecruiterScraper
 
 
 def scrape_jobs(
@@ -42,6 +36,7 @@ def scrape_jobs(
     hours_old: int = None,
     enforce_annual_salary: bool = False,
     verbose: int = 2,
+    user_agent: str = None,
     **kwargs,
 ) -> pd.DataFrame:
     """
@@ -76,8 +71,7 @@ def scrape_jobs(
             site_types = [site_name]
         elif isinstance(site_name, list):
             site_types = [
-                map_str_to_site(site) if isinstance(site, str) else site
-                for site in site_name
+                map_str_to_site(site) if isinstance(site, str) else site for site in site_name
             ]
         return site_types
 
@@ -103,7 +97,7 @@ def scrape_jobs(
 
     def scrape_site(site: Site) -> Tuple[str, JobResponse]:
         scraper_class = SCRAPER_MAPPING[site]
-        scraper = scraper_class(proxies=proxies, ca_cert=ca_cert)
+        scraper = scraper_class(proxies=proxies, ca_cert=ca_cert, user_agent=user_agent)
         scraped_data: JobResponse = scraper.scrape(scraper_input)
         cap_name = site.value.capitalize()
         site_name = "ZipRecruiter" if cap_name == "Zip_recruiter" else cap_name
@@ -117,9 +111,7 @@ def scrape_jobs(
         return site_val, scraped_info
 
     with ThreadPoolExecutor() as executor:
-        future_to_site = {
-            executor.submit(worker, site): site for site in scraper_input.site_type
-        }
+        future_to_site = {executor.submit(worker, site): site for site in scraper_input.site_type}
 
         for future in as_completed(future_to_site):
             site_value, scraped_data = future.result()
@@ -154,13 +146,9 @@ def scrape_jobs(
                 if job_data["job_type"]
                 else None
             )
-            job_data["emails"] = (
-                ", ".join(job_data["emails"]) if job_data["emails"] else None
-            )
+            job_data["emails"] = ", ".join(job_data["emails"]) if job_data["emails"] else None
             if job_data["location"]:
-                job_data["location"] = Location(
-                    **job_data["location"]
-                ).display_location()
+                job_data["location"] = Location(**job_data["location"]).display_location()
 
             compensation_obj = job_data.get("compensation")
             if compensation_obj and isinstance(compensation_obj, dict):
@@ -250,8 +238,8 @@ def scrape_jobs(
         jobs_df = jobs_df[desired_order]
 
         # Step 4: Sort the DataFrame as required
-        return jobs_df.sort_values(
-            by=["site", "date_posted"], ascending=[True, False]
-        ).reset_index(drop=True)
+        return jobs_df.sort_values(by=["site", "date_posted"], ascending=[True, False]).reset_index(
+            drop=True
+        )
     else:
         return pd.DataFrame()

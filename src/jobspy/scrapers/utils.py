@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import re
 import logging
+import re
 from itertools import cycle
+from typing import Optional
 
+import numpy as np
 import requests
 import tls_client
-import numpy as np
 from markdownify import markdownify as md
 from requests.adapters import HTTPAdapter, Retry
 
@@ -32,9 +33,7 @@ class RotatingProxySession:
             self.proxy_cycle = cycle([self.format_proxy(proxies)])
         elif isinstance(proxies, list):
             self.proxy_cycle = (
-                cycle([self.format_proxy(proxy) for proxy in proxies])
-                if proxies
-                else None
+                cycle([self.format_proxy(proxy) for proxy in proxies]) if proxies else None
             )
         else:
             self.proxy_cycle = None
@@ -212,7 +211,9 @@ def extract_salary(
         return None, None, None, None
 
     annual_max_salary = None
-    min_max_pattern = r"\$(\d+(?:,\d+)?(?:\.\d+)?)([kK]?)\s*[-—–]\s*(?:\$)?(\d+(?:,\d+)?(?:\.\d+)?)([kK]?)"
+    min_max_pattern = (
+        r"\$(\d+(?:,\d+)?(?:\.\d+)?)([kK]?)\s*[-—–]\s*(?:\$)?(\d+(?:,\d+)?(?:\.\d+)?)([kK]?)"
+    )
 
     def to_int(s):
         return int(float(s.replace(",", "")))
@@ -283,3 +284,21 @@ def extract_job_type(description: str):
             listing_types.append(key)
 
     return listing_types if listing_types else None
+
+
+def get_latest_user_agent(operating_system="windows", browser="chrome") -> Optional[str]:
+    try:
+        url = f"https://jnrbsn.github.io/user-agents/user-agents.json"
+        r = requests.get(url)
+        r.raise_for_status()
+        user_agents = r.json()
+
+        for user_agent in user_agents:
+            if (
+                operating_system.lower() in user_agent.lower()
+                and browser.lower() in user_agent.lower()
+            ):
+                return user_agent
+    except Exception as e:
+        pass
+    return None

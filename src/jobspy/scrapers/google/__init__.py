@@ -31,7 +31,7 @@ logger = create_logger("Google")
 
 class GoogleJobsScraper(Scraper):
     def __init__(
-        self, proxies: list[str] | str | None = None, ca_cert: str | None = None
+        self, proxies: list[str] | str | None = None, ca_cert: str | None = None, user_agent: str | None = None
     ):
         """
         Initializes Google Scraper with the Goodle jobs search url

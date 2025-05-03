@@ -2,14 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from ..jobs import (
-    Enum,
-    BaseModel,
-    JobType,
-    JobResponse,
-    Country,
-    DescriptionFormat,
-)
+from jobspy.scrapers.utils import get_latest_user_agent
+
+from ..jobs import BaseModel, Country, DescriptionFormat, Enum, JobResponse, JobType
 
 
 class Site(Enum):
@@ -47,11 +42,17 @@ class ScraperInput(BaseModel):
 
 class Scraper(ABC):
     def __init__(
-        self, site: Site, proxies: list[str] | None = None, ca_cert: str | None = None
+        self,
+        site: Site,
+        proxies: list[str] | None = None,
+        ca_cert: str | None = None,
+        user_agent: str | None = None,
     ):
         self.site = site
         self.proxies = proxies
         self.ca_cert = ca_cert
+        self.user_agent = user_agent if user_agent else get_latest_user_agent()
+        print(f"Using user agent: {self.user_agent}")
 
     @abstractmethod
     def scrape(self, scraper_input: ScraperInput) -> JobResponse: ...
